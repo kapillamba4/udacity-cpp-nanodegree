@@ -1,6 +1,3 @@
-#include <unistd.h>
-#include <cctype>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -23,7 +20,7 @@ string Process::User() { return mUser; }
 long int Process::UpTime() { return mUpTime; }
 
 bool Process::operator<(Process const& p) const {
-  return stoll(mRam) < stoll(p.mRam);
+  return mCpuUtilization < p.mCpuUtilization;
 }
 
 Process::Process(int pid, std::string user, std::string command,

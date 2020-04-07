@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <unistd.h>
+#include <cassert>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -99,7 +100,6 @@ long LinuxParser::UpTime() {
   return stol(uptime.substr(0, uptime.size() - 3));
 }
 
-// TODO: Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { return 0; }
 
 // TODO: Read and return the number of active jiffies for a PID
@@ -110,7 +110,11 @@ long LinuxParser::ActiveJiffies(int pid [[maybe_unused]]) { return 0; }
 long LinuxParser::ActiveJiffies() { return 0; }
 
 // TODO: Read and return the number of idle jiffies for the system
-long LinuxParser::IdleJiffies() { return 0; }
+long LinuxParser::IdleJiffies() {
+  vector<string> cpuUtilization = CpuUtilization();
+  return (std::stol(cpuUtilization[CPUStates::kIdle_]) +
+          std::stol(cpuUtilization[CPUStates::kIOwait_]));
+}
 
 vector<string> LinuxParser::CpuUtilization() {
   vector<string> cpuUtilization;
@@ -128,6 +132,33 @@ vector<string> LinuxParser::CpuUtilization() {
   }
 
   return cpuUtilization;
+}
+
+// Ref:
+// https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
+float LinuxParser::CpuUtilization(int pid) {
+  std::ifstream filestream(kProcDirectory + to_string(pid) + kStatFilename);
+  string line;
+  if (filestream.is_open()) {
+    std::getline(filestream, line);
+    std::istringstream linestream(line);
+    vector<string> fields;
+    string s;
+    while (linestream >> s) {
+      fields.push_back(s);
+    }
+    long utime = std::stol(fields[13]);
+    long stime = std::stol(fields[14]);
+    long ctime = std::stol(fields[15]);
+    long cstime = std::stol(fields[16]);
+    long startTime = std::stol(fields[21]);
+    long sys_uptime = UpTime();
+    long total_time = utime + stime + ctime + cstime;
+    long seconds = sys_uptime - (startTime / sysconf(_SC_CLK_TCK));
+    if (seconds == 0) return 0;
+    return (float(total_time) / sysconf(_SC_CLK_TCK)) / float(seconds);
+  }
+  return 0.0;
 }
 
 int LinuxParser::TotalProcesses() {
@@ -190,7 +221,7 @@ string LinuxParser::Ram(int pid) {
   return string("0");
 }
 
-string LinuxParser::Uid(int pid [[maybe_unused]]) {
+string LinuxParser::Uid(int pid) {
   string line, key;
   long value;
   std::ifstream filestream(kProcDirectory + to_string(pid) + kStatusFilename);

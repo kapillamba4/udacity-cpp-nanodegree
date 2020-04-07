@@ -1,16 +1,11 @@
-#include <linux_parser.h>
-#include <unistd.h>
-#include <cstddef>
-#include <iostream>
-#include <set>
 #include <string>
 #include <vector>
 
+#include "linux_parser.h"
 #include "process.h"
 #include "processor.h"
 #include "system.h"
 
-using std::set;
 using std::size_t;
 using std::string;
 using std::vector;
@@ -22,8 +17,9 @@ vector<Process>& System::Processes() {
   processes_.clear();
   for (int pid : pids) {
     processes_.emplace_back(
-        Process(pid, LinuxParser::User(pid), LinuxParser::Command(pid), 0,
-                LinuxParser::UpTime(pid), LinuxParser::Ram(pid)));
+        Process(pid, LinuxParser::User(pid), LinuxParser::Command(pid),
+                LinuxParser::CpuUtilization(pid), LinuxParser::UpTime(pid),
+                LinuxParser::Ram(pid)));
   }
 
   sort(processes_.rbegin(), processes_.rend());
